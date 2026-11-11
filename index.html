@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#153d2b">
+<title>Mi Quiniela</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--green:#153d2b;--lime:#2e8b57;--bg:#f4f7f5;--ink:#18231d;--muted:#65736a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:var(--green);color:white;padding:24px 18px 20px;border-radius:0 0 22px 22px}
+.brand{display:flex;align-items:center;gap:12px}.logo{background:white;color:var(--lime);width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:25px;font-weight:800}
+h1{font-size:22px;margin:0}header p{color:#d6e6dc;margin:3px 0 0;font-size:13px}
+main{max-width:620px;margin:auto;padding:16px}.tabs{display:flex;gap:8px;margin-bottom:15px}.tab{flex:1;border:0;border-radius:12px;padding:12px;background:#e3ebe6;color:var(--green);font-weight:700}.tab.active{background:var(--green);color:white}
+.card{background:white;border:1px solid #e1e9e3;border-radius:17px;padding:16px;margin:12px 0;box-shadow:0 3px 12px #153d2b0b}
+h2{font-size:18px;margin:0 0 8px}.muted{color:var(--muted);font-size:13px}.btn{border:0;border-radius:12px;padding:13px 15px;background:var(--green);color:white;font-weight:700;font-size:15px;width:100%;margin-top:9px}.btn.secondary{background:#e7efe9;color:var(--green)}input,select{width:100%;padding:12px;border:1px solid #ccd8cf;border-radius:10px;font:inherit;background:white;margin:5px 0 10px}.numbers{display:flex;gap:6px;justify-content:space-between;margin:12px 0}.ball{width:38px;height:38px;border-radius:50%;background:#eaf1ec;display:grid;place-items:center;font-weight:800;font-size:14px;flex:1}
+.ticket{border:1px solid #e1e9e3;border-radius:13px;padding:13px;margin-top:10px;background:#fff}.row{display:flex;justify-content:space-between;gap:8px;align-items:center}.tag{font-size:11px;font-weight:700;background:#fff2d9;color:#875700;border-radius:30px;padding:5px 9px}
+.hidden{display:none!important}video,img.preview{width:100%;border-radius:12px;margin-top:10px;background:#17251d;max-height:360px;object-fit:contain}
+label{font-size:13px;font-weight:700}.hint{background:#f0f5f1;padding:11px;border-radius:10px;color:#43564a;font-size:12px;line-height:1.45}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:20px}
+</style>
+</head>
+<body>
+<header><div class="brand"><div class="logo">✓</div><div><h1>MI QUINIELA</h1><p>Escaneá. Compará. Ganá.</p></div></div></header>
+<main>
+<div class="tabs"><button class="tab active" data-tab="home">Inicio</button><button class="tab" data-tab="history">Mis tickets</button></div>
+<section id="home">
+<div class="card"><div class="row"><h2>Control de jugadas</h2><span class="tag">Versión de prueba</span></div><p class="muted">Guardá tus tickets y preparalos para verificar los resultados.</p><div class="row"><strong id="count">0 tickets</strong><strong id="total">$0</strong></div></div>
+<div class="card"><h2>Agregar ticket</h2><p class="muted">Usá la cámara o elegí una foto de tu galería.</p>
+<label for="game">Juego</label><select id="game"><option>Quini 6</option><option>Poceada Chaqueña</option><option>Quiniela</option><option>Otro</option></select>
+<label for="province">Provincia / jurisdicción</label><select id="province"><option>Santa Fe</option><option>Chaco</option><option>Buenos Aires</option><option>Córdoba</option><option>Otra</option></select>
+<label for="draw">Número de sorteo</label><input id="draw" placeholder="Ej.: 3397">
+<label for="date">Fecha del sorteo</label><input id="date" type="date">
+<label>Fotografía del ticket</label>
+<input id="photo" type="file" accept="image/*" capture="environment">
+<img id="preview" class="preview hidden" alt="Vista previa del ticket">
+<div class="hint">La foto se usa como referencia. Para evitar errores, verificá y cargá manualmente los números reconocidos antes de guardar. El reconocimiento automático se incorporará en la siguiente etapa.</div>
+<label for="nums">Números de la jugada (separados por espacios)</label><input id="nums" inputmode="numeric" placeholder="Ej.: 07 18 27 34 41 44">
+<label for="amount">Importe apostado ($)</label><input id="amount" inputmode="decimal" placeholder="Ej.: 4000">
+<button class="btn" id="save">Guardar ticket</button>
+<button class="btn secondary" id="camera">Probar cámara en vivo</button>
+<video id="video" class="hidden" autoplay playsinline></video><button class="btn secondary hidden" id="stop">Cerrar cámara</button>
+<p id="message" class="muted" role="status"></p>
+</div>
+</section>
+<section id="history" class="hidden"><div class="card"><h2>Mis tickets</h2><p class="muted">Los tickets se guardan en este dispositivo.</p><div id="list"></div><button class="btn secondary" id="export">Exportar copia de mis tickets</button></div></section>
+</main><footer>Mi Quiniela · Prototipo local. Aún no consulta resultados oficiales ni confirma premios.</footer>
+<script>
+const $=id=>document.getElementById(id);
+let tickets=JSON.parse(localStorage.getItem('miQuinielaTickets')||'[]'),stream=null;
+function money(n){return '$'+Number(n||0).toLocaleString('es-AR')}
+function render(){
+ $('count').textContent=tickets.length+' tickets';
+ $('total').textContent=money(tickets.reduce((s,t)=>s+Number(t.amount||0),0));
+ $('list').innerHTML=tickets.length?tickets.slice().reverse().map(t=>`<div class="ticket"><div class="row"><b>${esc(t.game)} · Sorteo ${esc(t.draw||'s/d')}</b><span class="tag">Pendiente</span></div><p class="muted">${esc(t.province)} · ${esc(t.date||'Fecha no indicada')}</p><div class="numbers">${t.nums.map(n=>`<span class="ball">${esc(n)}</span>`).join('')}</div><div class="row"><small>Importe: ${money(t.amount)}</small><button data-del="${t.id}" class="btn secondary" style="width:auto;margin:0;padding:8px 12px">Eliminar</button></div></div>`).join(''):'<p class="muted">Todavía no guardaste tickets.</p>';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));$('home').classList.toggle('hidden',b.dataset.tab!=='home');$('history').classList.toggle('hidden',b.dataset.tab!=='history');});
+$('photo').onchange=()=>{let f=$('photo').files[0];if(!f)return;$('preview').src=URL.createObjectURL(f);$('preview').classList.remove('hidden');};
+$('save').onclick=()=>{
+ let nums=$('nums').value.trim().split(/[\s,;-]+/).filter(Boolean);
+ if(!nums.length){$('message').textContent='Ingresá los números de la jugada antes de guardar.';return}
+ if(nums.some(n=>!/^\d{1,3}$/.test(n))){$('message').textContent='Revisá el formato de los números.';return}
+ let t={id:Date.now(),game:$('game').value,province:$('province').value,draw:$('draw').value,date:$('date').value,nums,amount:$('amount').value.replace(',','.'),photoName:$('photo').files[0]?.name||''};
+ tickets.push(t);localStorage.setItem('miQuinielaTickets',JSON.stringify(tickets));render();$('message').textContent='Ticket guardado en este dispositivo.';$('nums').value='';$('amount').value='';$('draw').value='';$('photo').value='';$('preview').classList.add('hidden');
+};
+$('list').onclick=e=>{let id=e.target.dataset.del;if(!id)return;tickets=tickets.filter(t=>t.id!=id);localStorage.setItem('miQuinielaTickets',JSON.stringify(tickets));render()};
+$('export').onclick=()=>{let blob=new Blob([JSON.stringify(tickets,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mis-tickets-mi-quiniela.json';a.click();URL.revokeObjectURL(a.href)};
+$('camera').onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});$('video').srcObject=stream;$('video').classList.remove('hidden');$('stop').classList.remove('hidden');}catch(e){$('message').textContent='No se pudo abrir la cámara. Probá desde Chrome con permiso de cámara y conexión segura (HTTPS).';}};
+$('stop').onclick=()=>{stream?.getTracks().forEach(t=>t.stop());$('video').classList.add('hidden');$('stop').classList.add('hidden')};
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+render();
+</script>
+</body></html>
